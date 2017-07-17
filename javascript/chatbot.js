@@ -39,15 +39,18 @@ chatClient.prototype.onError = function onError(message){
 chatClient.prototype.onMessage = function onMessage(message){
     if(message !== null){
         var parsed = this.parseMessage(message.data);
-
         if(parsed !== null){
-            userPoints = localStorage.getItem(parsed.username);
+            if(parsed.command === "PRIVMSG") {
+                userPoints = localStorage.getItem(parsed.username);
 
-            if(userPoints === null){
-                localStorage.setItem(parsed.username, 10);
-            }
-            else {
-                localStorage.setItem(parsed.username, parseFloat(userPoints) + 0.25);
+                if(userPoints === null){
+                    localStorage.setItem(parsed.username, 10);
+                }
+                else {
+                    localStorage.setItem(parsed.username, parseFloat(userPoints) + 0.25);
+                }
+            } else if(parsed.command === "PING") {
+                this.webSocket.send("PONG :" + parsed.message);
             }
         }
     }
@@ -108,10 +111,9 @@ chatClient.prototype.parseMessage = function parseMessage(rawMessage) {
         parsedMessage.command = rawMessage.slice(userIndex + 1, commandIndex);
         parsedMessage.channel = rawMessage.slice(commandIndex + 1, channelIndex);
         parsedMessage.message = rawMessage.slice(messageIndex + 1);
-    }
-
-    if(parsedMessage.command !== 'PRIVMSG'){
-        parsedMessage = null;
+    } else if(rawMessage.startsWith("PING")) {
+        parsedMessage.command = "PING";
+        parsedMessage.message = rawMessage.split(":")[1];
     }
 
     return parsedMessage;
