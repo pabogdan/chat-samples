@@ -1,16 +1,22 @@
 '''
 Copyright 2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License"). You may not use this file except in compliance with the License. A copy of the License is located at
+Licensed under the Apache License, Version 2.0 (the "License"). You may not
+use this file except in compliance with the License.
+A copy of the License is located at
 
     http://aws.amazon.com/apache2.0/
 
-or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+or in the "license" file accompanying this file. This file is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
 '''
 
 import sys
 import irc.bot
 import requests
+
 
 class TwitchBot(irc.bot.SingleServerIRCBot):
     def __init__(self, username, client_id, token, channel):
@@ -27,31 +33,33 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
         # Create IRC bot connection
         server = 'irc.chat.twitch.tv'
         port = 6667
-        print 'Connecting to ' + server + ' on port ' + str(port) + '...'
-        irc.bot.SingleServerIRCBot.__init__(self, [(server, port, 'oauth:'+token)], username, username)
-        
+        print('Connecting to ' + server + ' on port ' + str(port) + '...')
+        print(irc.bot.SingleServerIRCBot.__init__(self, [(server, port, 'oauth:' + token)], username, username))
 
     def on_welcome(self, c, e):
-        print 'Joining ' + self.channel
+        print('Joining ' + self.channel)
+        print('PING', c.ping(self.channel))
 
         # You must request specific capabilities before you can use them
         c.cap('REQ', ':twitch.tv/membership')
         c.cap('REQ', ':twitch.tv/tags')
         c.cap('REQ', ':twitch.tv/commands')
-        c.join(self.channel)
+        print("Join channel: ", c.join(self.channel))
+        c.privmsg(self.channel, "Hello, fellow humans!")
 
-    def on_pubmsg(self, c, e):
-
+    def on_pubmsg(self, server_connection, message):
         # If a chat message starts with an exclamation point, try to run it as a command
-        if e.arguments[0][:1] == '!':
-            cmd = e.arguments[0].split(' ')[0][1:]
-            print 'Received command: ' + cmd
-            self.do_command(e, cmd)
+        if message.arguments[0][:1] == '!':
+            cmd = message.arguments[0].split(' ')[0][1:]
+            print('Received command: ' + cmd)
+            self.do_command(message, cmd)
         return
 
-    def do_command(self, e, cmd):
+    def do_command(self, message, cmd):
         c = self.connection
-
+        # this should be display name
+        msg_source = message.tags[3]['value']
+        cmd = str.lower(cmd)
         # Poll the API to get current game.
         if cmd == "game":
             url = 'https://api.twitch.tv/kraken/channels/' + self.channel_id
@@ -65,31 +73,36 @@ class TwitchBot(irc.bot.SingleServerIRCBot):
             headers = {'Client-ID': self.client_id, 'Accept': 'application/vnd.twitchtv.v5+json'}
             r = requests.get(url, headers=headers).json()
             c.privmsg(self.channel, r['display_name'] + ' channel title is currently ' + r['status'])
-
         # Provide basic information to viewers for specific commands
-        elif cmd == "raffle":
-            message = "This is an example bot, replace this text with your raffle text."
+        elif cmd == "zap":
+            message = "@" + msg_source + " zippity zapping @Awkar_."
             c.privmsg(self.channel, message)
-        elif cmd == "schedule":
-            message = "This is an example bot, replace this text with your schedule text."            
+        elif cmd == "beep":
+            message = "@" + msg_source + " boop!"
             c.privmsg(self.channel, message)
+        elif cmd == "twitter":
+            c.privmsg(self.channel, "My twitter is @pabmcr")
+        elif cmd == "github":
+            c.privmsg(self.channel, "My github is https://github.com/pabogdan/")
 
         # The command was not recognized
         else:
             c.privmsg(self.channel, "Did not understand command: " + cmd)
+
 
 def main():
     if len(sys.argv) != 5:
         print("Usage: twitchbot <username> <client id> <token> <channel>")
         sys.exit(1)
 
-    username  = sys.argv[1]
+    username = sys.argv[1]
     client_id = sys.argv[2]
-    token     = sys.argv[3]
-    channel   = sys.argv[4]
+    token = sys.argv[3]
+    channel = sys.argv[4]
 
     bot = TwitchBot(username, client_id, token, channel)
     bot.start()
+
 
 if __name__ == "__main__":
     main()
